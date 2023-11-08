@@ -45,6 +45,7 @@ def pagination(list):
     data_to_return = list_response[page_start: page_start + page_size]
     return make_response(jsonify(data_to_return), 200)
 
+
 def jwt_required(func):
     @wraps(func)
     def jwt_required_wrapper(*args, **kwargs):
@@ -53,17 +54,19 @@ def jwt_required(func):
             token = request.headers['x-access-token']
         if not token:
             return jsonify( \
-                {'message' : 'Token is missing'}), 401
+                {'message': 'Token is missing'}), 401
         try:
             data = jwt.decode(token, \
                               app.config['SECRET_KEY'])
         except:
             return jsonify( \
-                {'message' : 'Token is invalid'}), 401
+                {'message': 'Token is invalid'}), 401
         return func(*args, **kwargs)
+
     return jwt_required_wrapper
 
-@app.route(BASE_URL+'/login', methods=['GET'])
+
+@app.route(BASE_URL + '/login', methods=['GET'])
 def login():
     auth = request.authorization
     if auth and auth.password == 'password':
@@ -77,28 +80,30 @@ def login():
                          {'WWW-Authenticate': 'Basic realm = "Login required'})
 
 
-
 @app.route(BASE_URL + "/businesses", methods=["GET"])
 def return_all_businesses():
     return businessService.return_all_businesses()
 
 
-@app.route(BASE_URL + "/businesses/<string:id>?token=<string:token>", methods=["GET"])
+@app.route(BASE_URL + "/businesses/<string:id>", methods=["GET"])
 def return_one_business(id):
     return businessService.return_one_business(id)
 
 
 @app.route(BASE_URL + "/businesses", methods=["POST"])
+@jwt_required
 def add_new_business():
     return businessService.add_new_business()
 
 
 @app.route(BASE_URL + "/businesses/<string:id>", methods=["PUT"])
+@jwt_required
 def edit_business(id):
     return businessService.edit_business(id)
 
 
 @app.route(BASE_URL + "/businesses/<string:id>", methods=["DELETE"])
+@jwt_required
 def delete_business(id):
     return businessService.delete_business(id)
 
@@ -119,11 +124,13 @@ def fetch_one_review(b_id, r_id):
 
 
 @app.route(BASE_URL + "/businesses/<string:b_id>/reviews/<string:r_id>", methods=["PUT"])
+@jwt_required
 def edit_review(b_id, r_id):
     return reviewService.edit_review(b_id, r_id)
 
 
 @app.route(BASE_URL + "/businesses/<string:b_id>/reviews/<string:r_id>", methods=["DELETE"])
+@jwt_required
 def delete_review(b_id, r_id):
     return reviewService.delete_review(b_id, r_id)
 
