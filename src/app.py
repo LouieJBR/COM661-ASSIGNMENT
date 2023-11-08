@@ -1,272 +1,142 @@
-from flask import Flask, request, jsonify, make_response
+import random
 import uuid
 
-BASE_URL = '/api/v1.0/'
+from flask import Flask, request, jsonify, make_response
+import businessService
+import reviewService
+import jwt
+import datetime
+from functools import wraps
 
-nbaTeams = [
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "ATL",
-        "teamName": "Atlanta Hawks",
-        "knownAs": "Hawks",
-        "location": "Atlanta"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "BOS",
-        "teamName": "Boston Celtics",
-        "knownAs": "Celtics",
-        "location": "Boston"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "BKN",
-        "teamName": "Brooklyn Nets",
-        "knownAs": "Nets",
-        "location": "Brooklyn"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "CHA",
-        "teamName": "Charlotte Hornets",
-        "knownAs": "Hornets",
-        "location": "Charlotte"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "CHI",
-        "teamName": "Chicago Bulls",
-        "knownAs": "Bulls",
-        "location": "Chicago"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "CLE",
-        "teamName": "Cleveland Cavaliers",
-        "knownAs": "Cavaliers",
-        "location": "Cleveland"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "DAL",
-        "teamName": "Dallas Mavericks",
-        "knownAs": "Mavericks",
-        "location": "Dallas"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "DEN",
-        "teamName": "Denver Nuggets",
-        "knownAs": "Nuggets",
-        "location": "Denver"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "DET",
-        "teamName": "Detroit Pistons",
-        "knownAs": "Pistons",
-        "location": "Detroit"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "GSW",
-        "teamName": "Golden State Warriors",
-        "knownAs": "Warriors",
-        "location": "Golden State"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "HOU",
-        "teamName": "Houston Rockets",
-        "knownAs": "Rockets",
-        "location": "Houston"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "IND",
-        "teamName": "Indiana Pacers",
-        "knownAs": "Pacers",
-        "location": "Indiana"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "LAC",
-        "teamName": "Los Angeles Clippers",
-        "knownAs": "Clippers",
-        "location": "Los Angeles"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "LAL",
-        "teamName": "Los Angeles Lakers",
-        "knownAs": "Lakers",
-        "location": "Los Angeles"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "MEM",
-        "teamName": "Memphis Grizzlies",
-        "knownAs": "Grizzlies",
-        "location": "Memphis"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "MIA",
-        "teamName": "Miami Heat",
-        "knownAs": "Heat",
-        "location": "Miami"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "MIL",
-        "teamName": "Milwaukee Bucks",
-        "knownAs": "Bucks",
-        "location": "Milwaukee"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "MIN",
-        "teamName": "Minnesota Timberwolves",
-        "knownAs": "Timberwolves",
-        "location": "Minnesota"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "NOP",
-        "teamName": "New Orleans Pelicans",
-        "knownAs": "Pelicans",
-        "location": "New Orleans"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "NYK",
-        "teamName": "New York Knicks",
-        "knownAs": "Knicks",
-        "location": "New York"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "OKC",
-        "teamName": "Oklahoma City Thunder",
-        "knownAs": "Thunder",
-        "location": "Oklahoma City"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "ORL",
-        "teamName": "Orlando Magic",
-        "knownAs": "Magic",
-        "location": "Orlando"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "PHI",
-        "teamName": "Philadelphia 76ers",
-        "knownAs": "76ers",
-        "location": "Philadelphia"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "PHX",
-        "teamName": "Phoenix Suns",
-        "knownAs": "Suns",
-        "location": "Phoenix"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "POR",
-        "teamName": "Portland Trail Blazers",
-        "knownAs": "Trail Blazers",
-        "location": "Portland"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "SAC",
-        "teamName": "Sacramento Kings",
-        "knownAs": "Kings",
-        "location": "Sacramento"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "SAS",
-        "teamName": "San Antonio Spurs",
-        "knownAs": "Spurs",
-        "location": "San Antonio"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "TOR",
-        "teamName": "Toronto Raptors",
-        "knownAs": "Raptors",
-        "location": "Toronto"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "UTA",
-        "teamName": "Utah Jazz",
-        "knownAs": "Jazz",
-        "location": "Utah"
-    },
-    {
-        "teamId": str(uuid.uuid1()),
-        "abbreviation": "WAS",
-        "teamName": "Washington Wizards",
-        "knownAs": "Wizards",
-        "location": "Washington"
-    }
-]
-
+from utils import Utils
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'mysecret'
 
-@app.route(BASE_URL + "/teams", methods=["GET"])
-def getAllTeams():
-    return make_response(jsonify(nbaTeams), 200)
-
-@app.route(BASE_URL + "/teams/<string:id>", methods=["GET"])
-def get_team_by_id(id):
-    return_team = [team for team in nbaTeams if team["teamId"] == id]
-
-    if return_team:
-        return make_response(jsonify(return_team[0]), 200)
-    else:
-        return make_response("A team with an Id: {}, was not found".format(id), 404)
-
-@app.route(BASE_URL + "/teams", methods=["POST"])
-def addTeam():
-    nextId = str(uuid.uuid1())
-    newTeam = {
-        "abbreviation": request.form["abbreviation"],
-        "teamName": request.form["name"],
-        "knownAs": request.form["knownAs"],
-        "location": request.form["location"]
-    }
-    nbaTeams[nextId] = newTeam
-    if nbaTeams.append(newTeam):
-        return make_response(jsonify(newTeam), 201)
-    else:
-        return  make_response(jsonify)
-
-@app.route(BASE_URL + "/teams/<string:id>", methods=["PUT"])
-def editTeam(id):
-    for team in nbaTeams:
-        if team["teamId"] == id:
-            team["abbreviation"] = request.form["abbreviation"]
-            team["teamName"] = request.form["name"]
-            team["knownAs"] = request.form["knownAs"]
-            team["location"] = request.form["location"]
-            return make_response(jsonify(team), 200)
-
-    return make_response("Team not found", 404)
+BASE_URL = '/api/v1.0'
 
 
-@app.route(BASE_URL+"/teams/<string:id>", methods=["DELETE"])
-def deleteTeam(id):
-    for team in nbaTeams:
-        if team["teamId"] == id:
-            nbaTeams.remove(team)
-            break
-    return make_response(jsonify({}), 200)
+def generate_dummy_data():
+    towns = ['Coleraine', 'Banbridge', 'Belfast',
+             'Lisburn', 'Ballymena', 'Derry', 'Newry',
+             'Enniskillen', 'Omagh', 'Ballymena']
+    business_dict = {}
+
+    for i in range(100):
+        id = str(uuid.uuid1())
+        name = "Biz " + str(i)
+        town = towns[random.randint(0, len(towns) - 1)]
+        rating = random.randint(1, 5)
+        business_dict[id] = {
+            "name": name, "town": town,
+            "rating": rating, "reviews": {}
+        }
+    return business_dict
+
+
+def pagination(list):
+    page_num, page_size = 1, 10
+    if request.args.get('pn'):
+        page_num = int(request.args.get('pn'))
+    if request.args.get('ps'):
+        page_size = int(request.args.get('ps'))
+    page_start = (page_size * (page_num - 1))
+    list_response = [{k: v} for k, v in list.items()]
+    data_to_return = list_response[page_start: page_start + page_size]
+    return make_response(jsonify(data_to_return), 200)
+
+
+def jwt_required(func):
+    @wraps(func)
+    def jwt_required_wrapper(*args, **kwargs):
+        token = None
+        if 'x-access-token' in request.headers:
+            token = request.headers['x-access-token']
+        if not token:
+            return jsonify( \
+                {'message': 'Token is missing'}), 401
+        try:
+            data = jwt.decode(token, \
+                              app.config['SECRET_KEY'])
+        except:
+            return jsonify( \
+                {'message': 'Token is invalid'}), 401
+        return func(*args, **kwargs)
+
+    return jwt_required_wrapper
+
+
+@app.route(BASE_URL + '/login', methods=['GET'])
+def login():
+    auth = request.authorization
+    if auth and auth.password == 'password':
+        token = jwt.encode( \
+            {'user': auth.username, \
+             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, \
+            app.config['SECRET_KEY'])
+        return jsonify({'token': token.decode('UTF-8')})
+
+    return make_response('Could not verify', 401,
+                         {'WWW-Authenticate': 'Basic realm = "Login required'})
+
+
+@app.route(BASE_URL + "/businesses", methods=["GET"])
+def return_all_businesses():
+    return businessService.return_all_businesses()
+
+
+@app.route(BASE_URL + "/businesses/<string:id>", methods=["GET"])
+def return_one_business(id):
+    return businessService.return_one_business(id)
+
+
+@app.route(BASE_URL + "/businesses", methods=["POST"])
+@jwt_required
+def add_new_business():
+    return businessService.add_new_business()
+
+
+@app.route(BASE_URL + "/businesses/<string:id>", methods=["PUT"])
+@jwt_required
+def edit_business(id):
+    return businessService.edit_business(id)
+
+
+@app.route(BASE_URL + "/businesses/<string:id>", methods=["DELETE"])
+@jwt_required
+def delete_business(id):
+    return businessService.delete_business(id)
+
+
+@app.route(BASE_URL + "/businesses/<string:id>/reviews", methods=["GET"])
+def fetch_all_reviews(id):
+    return reviewService.fetch_all_reviews(id)
+
+
+@app.route(BASE_URL + "/businesses/<string:b_id>/reviews", methods=["POST"])
+def add_new_review(b_id):
+    return reviewService.add_new_review(b_id)
+
+
+@app.route(BASE_URL + "/businesses/<string:b_id>/reviews/<string:r_id>", methods=["GET"])
+def fetch_one_review(b_id, r_id):
+    return reviewService.fetch_one_review(b_id, r_id)
+
+
+@app.route(BASE_URL + "/businesses/<string:b_id>/reviews/<string:r_id>", methods=["PUT"])
+@jwt_required
+def edit_review(b_id, r_id):
+    return reviewService.edit_review(b_id, r_id)
+
+
+@app.route(BASE_URL + "/businesses/<string:b_id>/reviews/<string:r_id>", methods=["DELETE"])
+@jwt_required
+def delete_review(b_id, r_id):
+    return reviewService.delete_review(b_id, r_id)
+
 
 if __name__ == "__main__":
+    data = Utils.generate_dummy_data()
+    businessService.businesses = data
+    reviewService.businesses = data
     app.run(debug=True)
