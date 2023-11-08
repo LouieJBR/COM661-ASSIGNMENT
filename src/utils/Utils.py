@@ -3,8 +3,6 @@ import uuid
 
 from flask import Flask, request, jsonify, make_response
 
-businesses = {}
-
 
 def generate_dummy_data():
     towns = ['Coleraine', 'Banbridge', 'Belfast',
