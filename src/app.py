@@ -1,37 +1,25 @@
-import random
-import uuid
-
-from flask import Flask, request, jsonify, make_response
-import businessService
-import reviewService
-import jwt
 import datetime
 from functools import wraps
 
-from utils import Utils
+import bcrypt
+import jwt
+from flask import Flask, request, jsonify, make_response
+from pymongo import MongoClient
+
+import businessService
+import reviewService
 
 app = Flask(__name__)
+
+client = MongoClient("mongodb://127.0.0.1:27017")
+db = client.bizDB  # select the database
+businesses = db.biz  # select the collection
+staff = db.staff
+blacklist = db.blacklist
+
 app.config['SECRET_KEY'] = 'mysecret'
 
 BASE_URL = '/api/v1.0'
-
-
-def generate_dummy_data():
-    towns = ['Coleraine', 'Banbridge', 'Belfast',
-             'Lisburn', 'Ballymena', 'Derry', 'Newry',
-             'Enniskillen', 'Omagh', 'Ballymena']
-    business_dict = {}
-
-    for i in range(100):
-        id = str(uuid.uuid1())
-        name = "Biz " + str(i)
-        town = towns[random.randint(0, len(towns) - 1)]
-        rating = random.randint(1, 5)
-        business_dict[id] = {
-            "name": name, "town": town,
-            "rating": rating, "reviews": {}
-        }
-    return business_dict
 
 
 def pagination(list):
@@ -61,23 +49,64 @@ def jwt_required(func):
         except:
             return jsonify( \
                 {'message': 'Token is invalid'}), 401
+
+        bl_token = blacklist.find_one({"token": token})
+        if bl_token is not None:
+            return make_response(jsonify( \
+                {'message': \
+                     'Token has been cancelled. This session was ended.'}), 401)
         return func(*args, **kwargs)
 
     return jwt_required_wrapper
 
 
+def admin_required(func):
+    @wraps(func)
+    def admin_required_wrapper(*args, **kwargs):
+        token = request.headers['x-access-token']
+        data = jwt.decode(token, app.config['SECRET_KEY'])
+        if data['admin']:
+            return func(*args, **kwargs)
+        else:
+            return make_response(jsonify({'message': 'Administrator access is required for this operation'}), 401)
+
+    return admin_required_wrapper
+
+
 @app.route(BASE_URL + '/login', methods=['GET'])
 def login():
     auth = request.authorization
-    if auth and auth.password == 'password':
-        token = jwt.encode( \
-            {'user': auth.username, \
-             'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, \
-            app.config['SECRET_KEY'])
-        return jsonify({'token': token.decode('UTF-8')})
 
-    return make_response('Could not verify', 401,
-                         {'WWW-Authenticate': 'Basic realm = "Login required'})
+    if auth:
+        user = staff.find_one({'username': auth.username})
+        if user is not None:
+            if bcrypt.checkpw(bytes(auth.password, 'UTF-8'), \
+                              user["password"]):
+                token = jwt.encode( \
+                    {'user': auth.username, \
+                     'admin': user['admin'],
+                     'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)}, \
+                    app.config['SECRET_KEY'])
+                return make_response(jsonify( \
+                    {'token': token.decode('UTF-8')}), 200)
+            else:
+                return make_response(jsonify( \
+                    {'message': 'Incorrect Password'}), 401)
+        else:
+            return make_response(jsonify( \
+                {'message': 'Incorrect Username'}), 401)
+
+    return make_response(jsonify( \
+        {'message': 'Authentication required'}), 401)
+
+
+@app.route(BASE_URL + '/logout', methods=["GET"])
+@jwt_required
+def logout():
+    token = request.headers['x-access-token']
+    blacklist.insert_one({"token": token})
+    return make_response(jsonify( \
+        {'message': 'Logout successful'}), 200)
 
 
 @app.route(BASE_URL + "/businesses", methods=["GET"])
@@ -104,6 +133,7 @@ def edit_business(id):
 
 @app.route(BASE_URL + "/businesses/<string:id>", methods=["DELETE"])
 @jwt_required
+@admin_required
 def delete_business(id):
     return businessService.delete_business(id)
 
@@ -131,12 +161,12 @@ def edit_review(b_id, r_id):
 
 @app.route(BASE_URL + "/businesses/<string:b_id>/reviews/<string:r_id>", methods=["DELETE"])
 @jwt_required
+@admin_required
 def delete_review(b_id, r_id):
     return reviewService.delete_review(b_id, r_id)
 
 
 if __name__ == "__main__":
-    data = Utils.generate_dummy_data()
-    businessService.businesses = data
-    reviewService.businesses = data
+    businessService.businesses = businesses
+    reviewService.businesses = businesses
     app.run(debug=True)
