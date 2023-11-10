@@ -13,13 +13,12 @@ def return_all_businesses():
     page_start = (page_size * (page_num - 1))
 
     data_to_return = []
-    for business in businesses.find() \
-            .skip(page_start).limit(page_size):
+    for business in businesses.find().skip(page_start).limit(page_size):
         business['_id'] = str(business['_id'])
         for review in business['reviews']:
             review['_id'] = str(review['_id'])
         data_to_return.append(business)
-    return make_response(data_to_return, 200)
+    return make_response(jsonify(data_to_return), 200)
 
 
 def return_one_business(id):
